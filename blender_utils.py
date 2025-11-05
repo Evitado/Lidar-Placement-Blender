@@ -286,7 +286,7 @@ def get_grid_points(plate_name: str,
                           coll_name: str = "Grid_Debug",
                           empty_size: float = 0.04):
     """
-    Return evenly spaced world-space points on the TOP face of a mesh.
+    Return evenly spaced world-space points on the TOP face of a mesh. By chanmging the nx and ny values we can increase or decrease the no. of locations..
     """
     obj = bpy.data.objects.get(plate_name)
     if not obj or obj.type != 'MESH':

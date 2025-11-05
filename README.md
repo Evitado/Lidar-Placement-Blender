@@ -38,9 +38,22 @@ To run Blender from VS Code:
 
 
 
-## 4. Convert `.xacro` to `.urdf`
+## 4. Convert `.xacro` to `.urdf` (Only if you use different models)
 
 To use the `.urdf.xacro` files, you must first convert them to standard `.urdf` files using this ROS command:
 
 ```bash
 rosrun xacro xacro -o [OUTPUT_PATH/my_robot.urdf] [INPUT_PATH/my_robot.xacro.urdf] robot_namespace:=""
+
+
+## 5. Recreating simulaiton
+
+    * Clone this repoository. 'cd Lidar-Placement-Blender'
+    * Open the VS Code command palette (Ctrl+Shift+P).
+    * Type and select `>Blender: Start`.
+    * Open scripting tab in Blender and upload the main,py file and run it from Blender.
+    * The scene will automatically:
+        * Load Tug t5 and Aircraft a320_ceo
+        * Position and align both models
+        * Prepare LiDAR sampling and scanning areas
+        * Save or update scene4.blend automatically

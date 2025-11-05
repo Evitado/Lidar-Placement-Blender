@@ -7,7 +7,7 @@ import math
 import range_scanner 
 from mathutils import Vector
 
-
+#Defining and registering the script directory
 script_dir = os.path.dirname(bpy.data.filepath)
 if script_dir not in sys.path:
     sys.path.append(script_dir)
@@ -22,11 +22,11 @@ importlib.reload(urdf_utils)
 importlib.reload(lidar_utils)
 
 # Define all file paths ---
-TUG_URDF = '/home/mit/Blender_workspace/Tugs/t5.urdf'
-TUG_STL = '/home/mit/Blender_workspace/Tugs/t5.ply'
-AC_URDF = '/home/mit/Blender_workspace/AC/a320_ceo.urdf'
-AC_STL = '/home/mit/Blender_workspace/AC/a320_ceo.ply'
-EXPORT_DIR = "/home/mit/Blender_workspace/Outputs"
+TUG_URDF = os.path.join(script_dir, "Tugs", "t5.urdf")
+TUG_STL  = os.path.join(script_dir, "Tugs", "t5.ply")
+AC_URDF  = os.path.join(script_dir, "AC", "a320_ceo.urdf")
+AC_STL   = os.path.join(script_dir, "AC", "a320_ceo.ply")
+EXPORT_DIR = os.path.join(script_dir, "Outputs")
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
 
@@ -159,45 +159,45 @@ if not LOAD_FROM_BLEND_FILE or scene_was_loaded:
           
 
     
-            # # Define all Lidar properties
-            # lidar_name = "lidar"
-            # lidar_scale = (0.15, 0.15, 0.15)
-            # lidar_rotation = (90, 0, 90)
+            # Define all Lidar properties
+            lidar_name = "lidar"
+            lidar_scale = (0.15, 0.15, 0.15)
+            lidar_rotation = (90, 0, 90)
         
-            # #CREATE LIDAR (i.e camera)
-            # lidar_cam = blender_utils.create_camera(
-            #     name=lidar_name,
-            #     location=grid_points[0][1],
-            #     rotation_degrees=lidar_rotation,
-            #     scale=lidar_scale
-            # )
+            #CREATE LIDAR (i.e camera)
+            lidar_cam = blender_utils.create_camera(
+                name=lidar_name,
+                location=grid_points[0][1],
+                rotation_degrees=lidar_rotation,
+                scale=lidar_scale
+            )
             
-            # z_offset = 0.1   # raise LiDAR a bit above the plate (meters)
-            # show_wire = True  # draw scans as wire so point clouds are easy to see
-            # orientation_tag = f"yaw_{yaw_deg:03d}"
-            # print("Ahya poicha")
+            z_offset = 0.1   # raise LiDAR a bit above the plate (meters)
+            show_wire = True  # draw scans as wire so point clouds are easy to see
+            orientation_tag = f"yaw_{yaw_deg:03d}"
+            print("Ahya poicha")
 
-            # for idx, (surf,pt) in enumerate(grid_points, start=1):
-            #     # move lidar to this grid point (+ small Z )
-            #     print(f"[SCAN] {orientation_tag} | {surf} | {idx}/{len(grid_points)} "f"at {(round(pt.x,3), round(pt.y,3), round(pt.z,3))}")
-            #     pos = Vector((pt.x, pt.y, pt.z + z_offset))
-            #     blender_utils.set_position(lidar_cam.name, pos)
-            #     print("Ahya poicha3")
-            #     #bpy.context.view_layer.update()
-            #     out_name = f"{orientation_tag}_{surf}_scan_{idx:03d}"
+            for idx, (surf,pt) in enumerate(grid_points, start=1):
+                # move lidar to this grid point (+ small Z )
+                print(f"[SCAN] {orientation_tag} | {surf} | {idx}/{len(grid_points)} "f"at {(round(pt.x,3), round(pt.y,3), round(pt.z,3))}")
+                pos = Vector((pt.x, pt.y, pt.z + z_offset))
+                blender_utils.set_position(lidar_cam.name, pos)
+                print("Ahya poicha3")
+                #bpy.context.view_layer.update()
+                out_name = f"{orientation_tag}_{surf}_scan_{idx:03d}"
                 
-            #     # remember current objects to detect what the scanner adds
-            #     before = {o.name for o in bpy.data.objects}
-            #     print("Ahya poicha")
-            #     lidar_utils.run_detailed_rotating_scan(
-            #         scanner_name=lidar_cam.name,
-            #         output_dir=EXPORT_DIR,
-            #         output_filename=out_name,
-            #         export=True,          # set True later if you want files
-            #         add_mesh_to_scene=True 
-            #         #target_object=bpy.data.objects.get(surf)   
-            #     )
-            #     bpy.context.view_layer.update()
+                # remember current objects to detect what the scanner adds
+                before = {o.name for o in bpy.data.objects}
+                print("Ahya poicha")
+                lidar_utils.run_detailed_rotating_scan(
+                    scanner_name=lidar_cam.name,
+                    output_dir=EXPORT_DIR,
+                    output_filename=out_name,
+                    export=True,          # set True later if you want files
+                    add_mesh_to_scene=True 
+                    #target_object=bpy.data.objects.get(surf)   
+                )
+                bpy.context.view_layer.update()
                             
 
     else:
