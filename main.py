@@ -6,6 +6,29 @@ import importlib
 import math
 import range_scanner 
 from mathutils import Vector
+import argparse
+
+#------------------------CLI-------------------------------#
+def _parse_cli():
+    argv = sys.argv
+    # If `--` is present, take args after it (preferred standard)
+    if "--" in argv:
+        argv = argv[argv.index("--") + 1:]
+    else:
+        print("Usage: blender -b --python main.py -- --mode create/load --scene scene4.blend")
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--mode", choices=["create", "load"], default="load",
+                        help="create = new scene from scratch; load = open existing .blend")
+    parser.add_argument("--scene", type=str, default="scene4.blend",
+                        help="Blend file name or absolute path (default: scene4.blend)")
+    parser.add_argument("--tug", type=str, default="t5",
+                        help = "Tug model name (Must exist in Tugs folder)")
+    parser.add_argument("--ac", type=str, default="a320_ceo",
+                        help = "AC model name (Must exist in AC folder)")
+    return parser.parse_args(argv)
+
+_cli = _parse_cli()
 
 #Defining and registering the script directory
 script_dir = os.path.dirname(bpy.data.filepath)
@@ -22,21 +45,27 @@ importlib.reload(urdf_utils)
 importlib.reload(lidar_utils)
 
 # Define all file paths ---
-TUG_URDF = os.path.join(script_dir, "Tugs", "t5.urdf")
-TUG_STL  = os.path.join(script_dir, "Tugs", "t5.ply")
-AC_URDF  = os.path.join(script_dir, "AC", "a320_ceo.urdf")
-AC_STL   = os.path.join(script_dir, "AC", "a320_ceo.ply")
+TUG_URDF = os.path.join(script_dir, "Tugs", f"{_cli.tug}.urdf")
+TUG_STL  = os.path.join(script_dir, "Tugs", f"{_cli.tug}.stl")
+AC_URDF  = os.path.join(script_dir, "AC", f"{_cli.ac}.urdf")
+AC_STL   = os.path.join(script_dir, "AC", f"{_cli.ac}.ply")
 EXPORT_DIR = os.path.join(script_dir, "Outputs")
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
 
-#  Define the save/load path for your scene ---
-BLEND_FILE_PATH = os.path.join(script_dir, "scene4.blend")
+BLEND_FILE_PATH = _cli.scene if os.path.isabs(_cli.scene) else os.path.join(script_dir, _cli.scene)
+
+# Use CLI to decide: load existing or create new
+LOAD_FROM_BLEND_FILE = (_cli.mode == "load")
+print(f"[MODE] {_cli.mode.upper()}  |  BLEND: {BLEND_FILE_PATH}")
 
 
 # Set this to True to load the BLEND_FILE_PATH,Set this to False to create a new scene from scratch.
-LOAD_FROM_BLEND_FILE = True
+LOAD_FROM_BLEND_FILE = (_cli.mode == "load")
 
+#--------------Tug and AC name ---------------------
+TUG_OBJ_NAME = _cli.tug     # e.g., t5
+AC_OBJ_NAME  = _cli.ac 
 
 print("STARTING SCRIPT")
 scene_was_loaded = False
@@ -52,7 +81,7 @@ else:
 
     # Load Tug 
     tug_start_location = (0, 0, 0)
-    tug_object = blender_utils.import_ply(TUG_STL, "Tug_t5")
+    tug_object = blender_utils.import_stl(TUG_STL, TUG_OBJ_NAME)
     blender_utils.assign_material(tug_object.name, color=(0.8, 0.1, 0.1, 1.0))
     blender_utils.set_position(tug_object.name, tug_start_location)
     tug_data = urdf_utils.load_and_verify_urdf(TUG_URDF)
@@ -60,7 +89,7 @@ else:
 
     # Load Aircraft (AC) 
     ac_start_location = (0, 0, 0) 
-    ac_object = blender_utils.import_ply(AC_STL, "a3320_ceo")
+    ac_object = blender_utils.import_ply(AC_STL, AC_OBJ_NAME)
     blender_utils.assign_material(ac_object.name, color=(0.9, 0.9, 0.9, 1.0))
     blender_utils.set_position(ac_object.name, ac_start_location)
     ac_data = urdf_utils.load_and_verify_urdf(AC_URDF)
@@ -87,15 +116,17 @@ else:
     blender_utils.save_blend_file(BLEND_FILE_PATH)
 
 # ============================================================================================================================
-# Setup Lidar
+# ---------------------------------------------Setup Lidar and running scan..------------------------------------------------
 
-if not LOAD_FROM_BLEND_FILE or scene_was_loaded:
+RUN_SCAN = (_cli.mode == "load")  # scan only when loading an existing .blend file..
+
+if RUN_SCAN and (not LOAD_FROM_BLEND_FILE or scene_was_loaded):
     
     lidar_utils.enable_scanner_addon()
 
     # We find our permanent objects
-    tug_obj = bpy.data.objects.get("Tug_t5")
-    ac_obj = bpy.data.objects.get("a3320_ceo")
+    tug_obj = bpy.data.objects.get(TUG_OBJ_NAME)
+    ac_obj = bpy.data.objects.get(AC_OBJ_NAME)
 
     # Check if tug was found
     if tug_obj and ac_obj:
@@ -108,9 +139,13 @@ if not LOAD_FROM_BLEND_FILE or scene_was_loaded:
 
         ac_data = urdf_utils.load_and_verify_urdf(AC_URDF)
 
-        #angles you want the tug rotation in z axis
-        TUG_ORIENTATIONS = [45]
-        SURFACES = ("Cube", "Cube.001") #name of the mesh used for sampling lidar positions
+        #---------------angles you want the tug rotation in z axis---------------------------
+        TUG_ORIENTATIONS = [0,45,-45]
+        
+        #Auto detect the name of cubes in total added to blend file for lidar sampling
+        SURFACES = [obj.name for obj in bpy.data.objects 
+            if obj.type == "MESH" and "cube" in obj.name.lower()] 
+        
         for name in SURFACES:
             obj = bpy.data.objects.get(name)
             
@@ -136,10 +171,12 @@ if not LOAD_FROM_BLEND_FILE or scene_was_loaded:
             #Realignment of the Tug with AC model..
             tug_world_poses = urdf_utils.link_positions(tug_data, base_position=tug_obj.location)
             caster_pos = urdf_utils.get_link_position(tug_world_poses, "caster")
-            print(caster_pos)
+            
             ac_world_poses = urdf_utils.link_positions(ac_data, base_position=ac_obj.location)
             towbar_pos = urdf_utils.get_link_position(ac_world_poses, "towbar")
-            print(towbar_pos)
+            
+
+
             if caster_pos is not None and towbar_pos is not None:
                 correction = caster_pos - towbar_pos
                 correction_vector = Vector(correction)
@@ -175,20 +212,21 @@ if not LOAD_FROM_BLEND_FILE or scene_was_loaded:
             z_offset = 0.1   # raise LiDAR a bit above the plate (meters)
             show_wire = True  # draw scans as wire so point clouds are easy to see
             orientation_tag = f"yaw_{yaw_deg:03d}"
-            print("Ahya poicha")
+            
 
             for idx, (surf,pt) in enumerate(grid_points, start=1):
                 # move lidar to this grid point (+ small Z )
                 print(f"[SCAN] {orientation_tag} | {surf} | {idx}/{len(grid_points)} "f"at {(round(pt.x,3), round(pt.y,3), round(pt.z,3))}")
                 pos = Vector((pt.x, pt.y, pt.z + z_offset))
                 blender_utils.set_position(lidar_cam.name, pos)
-                print("Ahya poicha3")
+               
                 #bpy.context.view_layer.update()
                 out_name = f"{orientation_tag}_{surf}_scan_{idx:03d}"
                 
                 # remember current objects to detect what the scanner adds
                 before = {o.name for o in bpy.data.objects}
-                print("Ahya poicha")
+
+                # Lidar Scan start...
                 lidar_utils.run_detailed_rotating_scan(
                     scanner_name=lidar_cam.name,
                     output_dir=EXPORT_DIR,
