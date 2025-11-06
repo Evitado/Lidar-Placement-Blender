@@ -60,7 +60,7 @@ rosrun xacro xacro -o [OUTPUT_PATH/my_robot.urdf] [INPUT_PATH/my_robot.xacro.urd
     ```
 * If error occurs 'blender not found'. Execute to make your blender global 
     ```
-    echo 'export PATH=$PATH:/home/mit/Downloads/Blender/blender-4.2.13-linux-x64' >> ~/.bashrc
+    echo 'export PATH=$PATH: path_to_blender' >> ~/.bashrc
     source ~/.bashrc
     ```
 * Create a new blend file with different TUG and AC models.
